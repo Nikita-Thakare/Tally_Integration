@@ -1,22 +1,53 @@
-require('dotenv').config();
-const express = require('express');
-const app = express();
-const port = process.env.PORT || 3000;
+const axios = require("axios");
+const xml2js = require("xml2js");
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+async function fetchVoucherData() {
+  const tallyURL = "http://localhost:9002";
+  const ledgerNames = [
+    "Salary A/c",
+    "Furniture",
+    "Cab Repairing",
+    "Msco Tech Limited",
+  ];
 
-app.get('/', (req, res) => {
-  res.send('Hello, world!');
-});
+  try {
+    for (const ledgerName of ledgerNames) {
+      const xmlRequest = `
+        <ENVELOPE>
+          <HEADER>
+            <TALLYREQUEST>Export Data</TALLYREQUEST>
+          </HEADER>
+          <BODY>
+            <EXPORTDATA>
+              <REQUESTDESC>
+                <REPORTNAME>Ledger Vouchers</REPORTNAME>
+                <STATICVARIABLES>
+                  <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                  <LEDGERNAME>Salary A/c</LEDGERNAME>
+                  <LEDGERNAME>Furniture</LEDGERNAME>
+                  <LEDGERNAME>Msco Tech Limited</LEDGERNAME>
+                  
+                </STATICVARIABLES>
+              </REQUESTDESC>
+            </EXPORTDATA>
+          </BODY>
+        </ENVELOPE>`;
 
+      const response = await axios.post(tallyURL, xmlRequest, {
+        headers: {
+          "Content-Type": "application/xml",
+        },
+      });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send('Something broke!');
-});
+      const result = await xml2js.parseStringPromise(response.data);
+      console.log(
+        `Voucher Data for ${ledgerName}:`,
+        JSON.stringify(result, null, 2)
+      );
+    }
+  } catch (error) {
+    console.error("Error:", error);
+  }
+}
 
-app.listen(port, () => {
-  console.log(`Server is running at http://localhost:${port}`);
-});
+fetchVoucherData();
